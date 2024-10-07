@@ -1,0 +1,14 @@
+node_modules
+dist
+# Keep environment variables out of version control
+.env
+.env.prod
+.env.qa
+
+build
+
+logs
+
+package-lock.json
+
+/costAllocationPdfs/
