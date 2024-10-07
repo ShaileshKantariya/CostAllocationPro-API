@@ -1,0 +1,571 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model session {
+  sid    String   @id @default(uuid())
+  sess   Json
+  expire DateTime
+}
+
+model User {
+  id                           String         @id @default(uuid())
+  email                        String         @unique
+  firstName                    String?
+  lastName                     String?
+  phone                        String?
+  password                     String?
+  forgotPasswordToken          String?
+  forgotPasswordTokenExpiresAt String?
+  isVerified                   Boolean        @default(false)
+  isSignupViaQuickBooks        Boolean        @default(false)
+  status                       String?
+  profileImg                   String?
+  customerId                   String?
+  companies                    CompanyRole[]
+  invitedBy                    Invitations[]  @relation("invitedBy")
+  invitedTo                    Invitations[]  @relation("invitedTo")
+  tokens                       Token[]
+  createdAt                    DateTime       @default(now())
+  updatedAt                    DateTime       @updatedAt
+  passwordResetDate            DateTime       @default(now())
+  timeSheets                   TimeSheets[]
+  Journal                      Journal[]
+  Subscription                 Subscription[]
+}
+
+model Token {
+  id           String   @id @default(uuid())
+  User         User?    @relation(fields: [userId], references: [id])
+  userId       String?
+  accessToken  String
+  refreshToken String
+  machineId    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Company {
+  id                             String                           @id @default(uuid())
+  tenantName                     String?
+  tenantID                       String?
+  accessToken                    String?
+  refreshToken                   String?
+  accessTokenUTCDate             DateTime?
+  customerLastSyncDate           DateTime?
+  classLastSyncDate              DateTime?
+  employeeLastSyncDate           DateTime?
+  timeActivitiesLastSyncDate     DateTime?
+  isConnected                    Boolean?                         @default(false)
+  status                         Boolean?                         @default(true)
+  fiscalYear                     String?
+  users                          CompanyRole[]
+  createdAt                      DateTime                         @default(now())
+  updatedAt                      DateTime                         @updatedAt
+  Invitations                    Invitations[]
+  configuration                  Configuration[]
+  Employee                       Employee[]
+  timeActivities                 TimeActivities[]
+  ConfigurationSection           ConfigurationSection[]
+  Field                          Field[]
+  EmployeeCostField              EmployeeCostField[]
+  // MonthYearTable             MonthYearTable[]
+  timeSheets                     TimeSheets[]
+  hoursOver                      HoursOver[]
+  payPeriod                      PayPeriod[]
+  Journal                        Journal[]
+  SyncLogs                       SyncLogs[]
+  Subscription                   Subscription[]
+  CustomRules                    CustomRules[]
+  EmployeeDirectAllocationConfig EmployeeDirectAllocationConfig[]
+  ConfigurationCustomRules       ConfigurationCustomRules[]
+  TimelogMappingHistory TimelogMappingHistory[]
+  customClassMappings customClassMapping[]
+}
+
+model Role {
+  id              String        @id @default(uuid())
+  roleName        String
+  roleDescription String
+  isCompanyAdmin  Boolean       @default(false)
+  isSuperAdmin    Boolean       @default(false)
+  isAdminRole     Boolean       @default(false)
+  status          Boolean       @default(true)
+  users           CompanyRole[]
+  permissions     Permission[]
+  invitations     Invitations[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model CompanyRole {
+  id          String        @id @default(uuid())
+  user        User?         @relation(fields: [userId], references: [id])
+  userId      String?
+  role        Role          @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId      String
+  company     Company?      @relation(fields: [companyId], references: [id])
+  companyId   String?
+  status      Boolean       @default(true)
+  invitations Invitations[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Permission {
+  id             String   @id @default(uuid())
+  permissionName String
+  all            Boolean  @default(false)
+  view           Boolean  @default(false)
+  edit           Boolean  @default(false)
+  delete         Boolean  @default(false)
+  add            Boolean  @default(false)
+  role           Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId         String
+  sortId         Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Invitations {
+  id               String           @id @default(uuid())
+  invitedBy        User             @relation("invitedBy", fields: [invitedByUserId], references: [id])
+  invitedByUserId  String
+  invitedTo        User             @relation("invitedTo", fields: [invitedToUserId], references: [id])
+  invitedToUserId  String
+  role             Role             @relation(fields: [roleId], references: [id])
+  roleId           String
+  company          Company          @relation(fields: [companyId], references: [id])
+  companyId        String
+  companyRole      CompanyRole?     @relation(fields: [companyRoleId], references: [id])
+  companyRoleId    String?
+  invitationStatus InvitationStatus
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model Configuration {
+  id                           String          @id @default(uuid())
+  settings                     Json
+  indirectExpenseRate          Float?
+  payrollMethod                PayrollMethods?
+  company                      Company?        @relation(fields: [companyId], references: [id])
+  decimalToFixedPercentage     Int?            @default(4)
+  decimalToFixedAmount         Int?            @default(2)
+  companyId                    String
+  createdAt                    DateTime        @default(now())
+  updatedAt                    DateTime        @updatedAt
+  payPeriodId                  String?
+  payPeriod                    PayPeriod?      @relation(fields: [payPeriodId], references: [id])
+  isClassRequiredForJournal    Boolean         @default(true)
+  isCustomerRequiredForJournal Boolean         @default(true)
+
+  @@unique([companyId, payPeriodId])
+}
+
+model Employee {
+  id                             String                           @id @default(uuid())
+  employeeId                     String
+  fullName                       String
+  email                          String?
+  phone                          String?
+  active                         Boolean
+  company                        Company?                         @relation(fields: [companyId], references: [id])
+  companyId                      String?
+  createdAt                      DateTime                         @default(now())
+  updatedAt                      DateTime                         @updatedAt
+  timeActivities                 TimeActivities[]
+  employeeCostField              EmployeeCostField[]
+  employeeCostValue              EmployeeCostValue[]
+  timeSheetLogs                  TimeSheetLogs[]
+  splitTimeActivities            SplitTimeActivities[]
+  hoursOver                      HoursOver[]
+  EmployeeDirectAllocationConfig EmployeeDirectAllocationConfig[]
+}
+
+// Add 4 sections - 3 for fields and 1 for yearly data
+model ConfigurationSection {
+  id          String     @id @default(uuid())
+  companyId   String
+  company     Company    @relation(fields: [companyId], references: [id])
+  sectionName String // section name - Fringe Expense
+  fields      Field[]
+  no          Int
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  payPeriodId String?
+  payPeriod   PayPeriod? @relation(fields: [payPeriodId], references: [id])
+}
+
+// section 1 field 1
+model Field {
+  id                     String               @id @default(uuid())
+  configurationSectionId String // section id - Configuration Section id
+  jsonId                 String
+  companyId              String
+  company                Company              @relation(fields: [companyId], references: [id])
+  configurationSection   ConfigurationSection @relation(fields: [configurationSectionId], references: [id])
+  type                   FieldType            @default(Monthly)
+  name                   String // field name - health Insurance
+  employeeCostField      EmployeeCostField[]
+  payPeriodId            String?
+  payPeriod              PayPeriod?           @relation(fields: [payPeriodId], references: [id])
+  isActive               Boolean              @default(true)
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  priority               Int?                 @default(0)
+}
+
+// Employee 1 - Fringe
+model EmployeeCostField {
+  id          String              @id @default(uuid())
+  employee    Employee?           @relation(fields: [employeeId], references: [id])
+  companyId   String
+  company     Company             @relation(fields: [companyId], references: [id])
+  employeeId  String?
+  field       Field?              @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  fieldId     String?
+  costValue   EmployeeCostValue[]
+  payPeriodId String?
+  payPeriod   PayPeriod?          @relation(fields: [payPeriodId], references: [id])
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+// Employee 1 - March Fringe Expense
+model EmployeeCostValue {
+  id                String            @id @default(uuid())
+  employeeId        String
+  employee          Employee          @relation(fields: [employeeId], references: [id])
+  employeeType      EmployeeType?
+  employeeFieldId   String
+  employeeCostField EmployeeCostField @relation(fields: [employeeFieldId], references: [id], onDelete: Cascade)
+  // month             Int //06
+  // year              Int //2022
+  payPeriodId       String?
+  payPeriod         PayPeriod?        @relation(fields: [payPeriodId], references: [id])
+  value             String?           @default("0.00") // Employee 1 - March Fringe Expense = 10
+  isPercentage      Boolean // If percentage method is selected from configuration
+  isCalculatorValue Boolean?          @default(false)
+  calculatorValue   String?           @default("0.00")
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+// Month Year table to get month and year of created employee cost
+
+// model MonthYearTable {
+//   id        String   @id @default(uuid())
+//   month     Int //06
+//   year      Int //2022
+//   companyId String
+//   company   Company  @relation(fields: [companyId], references: [id])
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   @@unique([month, year, companyId])
+// }
+
+model PayPeriod {
+  id                             String                           @id @default(uuid())
+  startDate                      DateTime
+  endDate                        DateTime
+  status                         Int                              @default(1)
+  companyId                      String
+  closingDate                    DateTime?
+  company                        Company                          @relation(fields: [companyId], references: [id])
+  employeeCostValue              EmployeeCostValue[]
+  isJournalPublished             Boolean                          @default(false)
+  createdAt                      DateTime                         @default(now())
+  updatedAt                      DateTime                         @updatedAt
+  timeActivities                 TimeActivities[]
+  TimeSheets                     TimeSheets?
+  Journal                        Journal?
+  ConfigurationSection           ConfigurationSection[]
+  Field                          Field[]
+  EmployeeCostField              EmployeeCostField[]
+  Configuration                  Configuration[]
+  EmployeeDirectAllocationConfig EmployeeDirectAllocationConfig[]
+  ConfigurationCustomRules       ConfigurationCustomRules[]
+  customClassMappings customClassMapping[]
+}
+
+model TimeActivities {
+  id                  String                @id @default(uuid())
+  timeActivityId      String?               @default(uuid())
+  classId             String?
+  className           String?
+  customerId          String?
+  customerName        String?
+  hours               String
+  minute              String
+  companyId           String?
+  company             Company?              @relation(fields: [companyId], references: [id])
+  employeeId          String?
+  employee            Employee?             @relation(fields: [employeeId], references: [id])
+  activityDate        DateTime
+  payPeriodId         String?
+  payPeriod           PayPeriod?            @relation(fields: [payPeriodId], references: [id])
+  timeSheetId         String?
+  timeSheet           TimeSheets?           @relation(fields: [timeSheetId], references: [id])
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  SplitTimeActivities SplitTimeActivities[]
+  customRuleId        String?
+  isCustomRuleApplied Boolean               @default(false)
+}
+
+model SplitTimeActivities {
+  id                 String          @id @default(uuid())
+  classId            String?
+  className          String?
+  customerId         String?
+  customerName       String?
+  hours              String
+  minute             String
+  employeeId         String
+  employee           Employee        @relation(fields: [employeeId], references: [id])
+  timeActivityId     String
+  timeActivity       TimeActivities? @relation(fields: [timeActivityId], references: [id], onDelete: Cascade)
+  activityDate       DateTime
+  isAutoSplit        Boolean         @default(false)
+  isClassReadOnly    Boolean         @default(false)
+  isCustomerReadOnly Boolean         @default(false)
+  customRuleId       String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+}
+
+model TimeSheets {
+  id             String           @id @default(uuid())
+  name           String
+  totalHours     String?
+  totalMinute    String?
+  notes          String?
+  status         String
+  TimeSheetLogs  TimeSheetLogs[]
+  companyId      String
+  company        Company          @relation(fields: [companyId], references: [id])
+  userId         String
+  createdBy      User             @relation(fields: [userId], references: [id])
+  startDate      DateTime?
+  endDate        DateTime?
+  timeActivities TimeActivities[]
+  payPeriodId    String           @unique
+  payPeriod      PayPeriod        @relation(fields: [payPeriodId], references: [id])
+  submittedOn    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+// connection b/w employee and time sheet
+model TimeSheetLogs {
+  id           String     @id @default(uuid())
+  hours        String
+  minute       String
+  employeeId   String
+  employee     Employee   @relation(fields: [employeeId], references: [id])
+  timeSheetsId String
+  timeSheets   TimeSheets @relation(fields: [timeSheetsId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+// Employee hours Over
+model HoursOver {
+  id          String   @id @default(uuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  isOverHours Boolean  @default(false)
+  overHours   Int      @default(0)
+  overMinutes Int      @default(0)
+  year        Int
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Migrations {
+  id          String   @id @default(uuid())
+  name        String
+  isCompleted Boolean  @default(false)
+  isFailed    Boolean  @default(false)
+  runOn       DateTime @default(now())
+}
+
+model Journal {
+  id              String    @id @default(uuid())
+  date            DateTime
+  notes           String?
+  status          Int
+  amount          String
+  qboJournalNo    Int
+  qboJournalTrnId String?
+  payPeriodId     String    @unique
+  payPeriod       PayPeriod @relation(fields: [payPeriodId], references: [id])
+  companyId       String?
+  company         Company?  @relation(fields: [companyId], references: [id])
+  createdById     String
+  createdBy       User      @relation(fields: [createdById], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now())
+}
+
+model SyncLogs {
+  id         String   @id @default(uuid())
+  moduleName String
+  status     Int
+  message    String
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Subscription {
+  id                   String   @id @default(uuid())
+  zohoSubscriptionId   String
+  zohoProductId        String
+  zohoSubscriptionPlan Json
+  createdTime          String
+  status               String
+  addons               Json[]
+  expiresAt            String
+  zohoCustomerId       String
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id])
+  companyId            String?
+  company              Company? @relation(fields: [companyId], references: [id])
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model CustomRules {
+  id             String         @unique @default(uuid())
+  companyId      String
+  company        Company        @relation(fields: [companyId], references: [id])
+  priority       Int            @default(1)
+  name           String
+  isActive       Boolean        @default(true)
+  description    String?
+  triggerProcess TriggerProcess @default(split)
+  criteria       Json
+  actions        Json[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  createdBy      String?
+  updatedBy      String?
+}
+
+model ConfigurationCustomRules {
+  id          String     @unique @default(uuid())
+  companyId   String
+  company     Company    @relation(fields: [companyId], references: [id])
+  payPeriodId String?
+  payPeriod   PayPeriod? @relation(fields: [payPeriodId], references: [id])
+  priority    Int        @default(1)
+  name        String
+  isActive    Boolean    @default(true)
+  description String?
+  criteria    Json
+  actions     Json
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  createdBy   String?
+  updatedBy   String?
+}
+
+model ZohoDetails {
+  id           String   @unique @default(uuid())
+  accessToken  String
+  refreshToken String
+  scope        String
+  apiDomain    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model EmployeeDirectAllocationConfig {
+  id           String    @unique @default(uuid())
+  employeeId   String
+  employee     Employee  @relation(fields: [employeeId], references: [id])
+  payPeriodId  String
+  payPeriod    PayPeriod @relation(fields: [payPeriodId], references: [id])
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id])
+  allocation   Float
+  classId      String?
+  className    String?
+  customerId   String?
+  customerName String?
+  isActive     Boolean   @default(true)
+  createdBy    String?
+  updatedBy    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model customClassMapping{
+id           String    @unique @default(uuid())
+classMapping Json?
+payPeriodId  String
+payPeriod    PayPeriod @relation(fields: [payPeriodId], references: [id])
+companyId    String
+company      Company   @relation(fields: [companyId], references: [id])
+createdBy    String?
+updatedBy    String?
+createdAt    DateTime  @default(now())
+updatedAt    DateTime  @updatedAt
+
+@@unique([companyId, payPeriodId])
+}
+
+model TimelogMappingHistory {
+  id             String    @id @default(uuid())
+  companyId      String
+  company        Company   @relation(fields: [companyId], references: [id])
+
+  // Mapping fields as a JSON type to store all mappings (header, employee, customer, class)
+  mappingData    Json      // This will store the JSON object containing all the mappings
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+enum PayrollMethods {
+  Hours
+  Percentage
+}
+
+enum EmployeeType {
+  SalariedNonExempt
+  SalariedExempt
+  Hourly
+}
+
+enum FieldType {
+  Monthly
+  Yearly
+}
+
+enum InvitationStatus {
+  Pending
+  Accepted
+  Rejected
+}
+
+enum TriggerProcess {
+  add
+  edit
+  split
+  delete
+}

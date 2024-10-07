@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "TimeSheets" ALTER COLUMN "totalHours" DROP NOT NULL,
+ALTER COLUMN "totalMinute" DROP NOT NULL,
+ALTER COLUMN "submittedOn" DROP NOT NULL;
